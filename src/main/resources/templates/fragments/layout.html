@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title} ?: '游戏攻略站'">游戏攻略站</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div th:replace="fragments/header :: header"></div>
+
+<main>
+    <th:block th:insert="${content} ?: ~{}" />
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <p>&copy; 2026 游戏攻略站 — 为玩家而生</p>
+    </div>
+</footer>
+
+<div th:replace="fragments/header :: auth-script"></div>
+
+</body>
+</html>

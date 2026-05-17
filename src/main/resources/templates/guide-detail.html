@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${guideTitle} ?: '攻略详情'">攻略详情 - 游戏攻略站</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div th:replace="fragments/header :: header"></div>
+
+<main class="guide-detail">
+    <div class="container">
+        <div class="guide-detail-layout">
+            <!-- Main Content -->
+            <div class="guide-main">
+                <div id="guideHeader"></div>
+                <div class="guide-content" id="guideContent"></div>
+                <div class="guide-actions" id="guideActions"></div>
+
+                <!-- Comments -->
+                <div class="comment-section">
+                    <h3>评论 (<span id="commentCount">0</span>)</h3>
+                    <div id="commentForm"></div>
+                    <div id="commentList"></div>
+                    <div class="pagination" id="commentPagination"></div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-card" id="authorCard"></div>
+                <div class="sidebar-card" id="relatedGuides">
+                    <h4>相关攻略</h4>
+                    <div id="relatedList"><p style="color: var(--text-light); font-size: 0.9rem;">加载中...</p></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-links">
+                    <a href="/about">关于我们</a>
+                    <a href="/contact">联系我们</a>
+                    <a href="/disclaimer">免责申明</a>
+                    <a href="/privacy">隐私政策</a>
+                </div>
+        <p>&copy; 2026 游戏攻略站 — 为玩家而生</p>
+    </div>
+</footer>
+
+<div th:replace="fragments/header :: auth-script"></div>
+
+<!-- Confirm Dialog -->
+<div id="confirmDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);border-radius:var(--radius);padding:28px 32px;box-shadow:var(--shadow-hover);max-width:380px;width:90vw;text-align:center;">
+        <p id="confirmMsg" style="font-size:1rem;margin-bottom:20px;line-height:1.6;"></p>
+        <div style="display:flex;gap:10px;justify-content:center;">
+            <button id="confirmCancel" class="btn btn-outline" style="border-color:var(--border);color:var(--text);">取消</button>
+            <button id="confirmOk" class="btn btn-danger">确认删除</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const guideId = params.get('id');
+let commentPage = 1;
+let currentUserId = getUser() ? getUser().id : null;
+let authorUserId = null;
+
+if (!guideId) { window.location.href = '/guides'; }
+
+// Load guide detail
+api('/api/guide/' + guideId).then(r => {
+    if (r.code !== 200) {
+        document.getElementById('guideContent').innerHTML = '<div class="empty"><p>攻略不存在或已下架</p></div>';
+        return;
+    }
+
+    const g = r.data;
+    authorUserId = g.userId;
+    document.title = g.title + ' - 游戏攻略站';
+
+    document.getElementById('guideHeader').innerHTML = `
+        <h1>${g.title}</h1>
+        <div class="guide-info">
+            <span>&#128100; ${g.authorName || '未知'}</span>
+            <span>&#128064; ${g.viewCount} 浏览</span>
+            <span>&#10084; ${g.likeCount} 点赞</span>
+            <span>&#128172; ${g.commentCount} 评论</span>
+            <span>${formatDate(g.createdAt)}</span>
+            ${g.gameName ? '<a href="/game-detail?id=' + g.gameId + '" class="tag">' + g.gameName + '</a>' : ''}
+        </div>
+        ${g.tags ? '<div class="guide-tags" style="margin-bottom:16px;">' + g.tags.split(',').filter(Boolean).map(t => '<span class="tag">' + t.trim() + '</span>').join('') + '</div>' : ''}
+    `;
+
+    var content = g.content;
+    // Rewrite embedded <style> blocks to scope them within .guide-content
+    content = content.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, function(match, css) {
+        var scoped = css.replace(/(^|\})([^{}]*?)\{/g, function(m, sep, selector) {
+            var parts = selector.split(',');
+            var scopedParts = parts.map(function(p) {
+                p = p.trim();
+                if (!p) return p;
+                // Skip @media, @keyframes, from/to containers
+                if (p[0] === '@' || p === 'from' || p === 'to') return p;
+                // Scope root/body/html to .guide-content
+                if (p === ':root' || p === 'html' || p === 'body') return '.guide-content';
+                // Already scoped or is a pseudo-element of root
+                if (p.indexOf('.guide-content') === 0) return p;
+                return '.guide-content ' + p;
+            });
+            return sep + scopedParts.join(', ') + '{';
+        });
+        return '<style>' + scoped + '</style>';
+    });
+    document.getElementById('guideContent').innerHTML = content;
+    document.getElementById('commentCount').textContent = g.commentCount;
+
+    // Author card
+    document.getElementById('authorCard').innerHTML = `
+        <div class="author-info">
+            <div class="author-avatar">${(g.authorName || '?').charAt(0)}</div>
+            <div class="author-name">${g.authorName || '未知'}</div>
+            <p style="font-size:0.85rem;color:var(--text-light);margin-top:4px;">攻略作者</p>
+        </div>
+    `;
+
+    // Actions
+    let actionsHtml = '';
+    if (isLoggedIn()) {
+        actionsHtml += `<button class="like-btn" id="likeBtn" onclick="toggleLike()">&#10084; <span id="likeCount">${g.likeCount}</span></button>`;
+        if (currentUserId === authorUserId || (getUser() && getUser().role === 1)) {
+            actionsHtml += `<a href="/guide-editor?id=${g.id}&gameId=${g.gameId}" class="btn btn-outline btn-sm" style="border-color:var(--primary);color:var(--primary);">编辑</a>`;
+            actionsHtml += `<button class="btn btn-danger btn-sm" onclick="deleteGuide()">删除</button>`;
+        }
+    }
+    document.getElementById('guideActions').innerHTML = actionsHtml;
+
+    if (isLoggedIn()) checkLikeStatus();
+
+    // Related guides
+    api('/api/guide/list?gameId=' + g.gameId + '&size=5').then(rr => {
+        if (rr.code === 200) {
+            document.getElementById('relatedList').innerHTML = rr.data.list
+                .filter(rg => rg.id != guideId)
+                .slice(0, 5)
+                .map(rg => `<a href="/guide-detail?id=${rg.id}" class="related-guide-item">${rg.title}</a>`)
+                .join('') || '<p style="color:var(--text-light);font-size:0.9rem;">暂无其他攻略</p>';
+        }
+    });
+});
+
+function checkLikeStatus() {
+    api('/api/like/status?targetId=' + guideId + '&targetType=1').then(r => {
+        if (r.code === 200) {
+            document.getElementById('likeCount').textContent = r.data.likeCount;
+            const btn = document.getElementById('likeBtn');
+            if (btn) {
+                if (r.data.liked) btn.classList.add('liked');
+                else btn.classList.remove('liked');
+            }
+        }
+    });
+}
+
+function toggleLike() {
+    if (!isLoggedIn()) { window.location.href = '/login'; return; }
+    api('/api/like', { method: 'POST', body: { targetId: parseInt(guideId), targetType: 1 } }).then(r => {
+        if (r.code === 200) {
+            const btn = document.getElementById('likeBtn');
+            document.getElementById('likeCount').textContent = r.data.likeCount;
+            if (r.data.liked) btn.classList.add('liked');
+            else btn.classList.remove('liked');
+        }
+    });
+}
+
+function deleteGuide() {
+    showConfirm('确定要删除这篇攻略吗？此操作不可恢复。', function() {
+        api('/api/guide/' + guideId, { method: 'DELETE' }).then(r => {
+            if (r.code === 200) {
+                showToast('删除成功');
+                window.location.href = '/guides';
+            } else {
+                showToast(r.message || '删除失败', 'error');
+            }
+        });
+    });
+}
+
+// Comments
+function loadComments() {
+    api('/api/comment/list?guideId=' + guideId + '&page=' + commentPage + '&size=20').then(r => {
+        if (r.code !== 200) return;
+
+        if (r.data.list.length === 0) {
+            document.getElementById('commentList').innerHTML = '<div class="empty"><p>暂无评论，快来抢沙发</p></div>';
+        } else {
+            document.getElementById('commentList').innerHTML = r.data.list.map(c => `
+                <div class="comment-item">
+                    <div class="comment-header">
+                        <div class="comment-avatar">${(c.nickname || '?').charAt(0)}</div>
+                        <span class="comment-nickname">${c.nickname || '未知'}</span>
+                        <span class="comment-time">${formatDate(c.createdAt)}</span>
+                    </div>
+                    <div class="comment-content">${c.content}</div>
+                    <div class="comment-actions">
+                        <span onclick="toggleCommentLike(${c.id})">&#10084; ${c.likeCount}</span>
+                        <span onclick="showReplyForm(${c.id}, '${c.nickname}')">回复</span>
+                        ${(currentUserId === c.userId || (getUser() && getUser().role === 1)) ? '<span onclick="deleteComment(' + c.id + ')" style="color:var(--danger);">删除</span>' : ''}
+                    </div>
+                    <div id="replyForm_${c.id}"></div>
+                    ${c.replies && c.replies.length ? `
+                        <div class="comment-replies">
+                            ${c.replies.map(r => `
+                                <div class="comment-item" style="border-bottom: none; padding: 8px 0;">
+                                    <div class="comment-header">
+                                        <div class="comment-avatar">${(r.nickname || '?').charAt(0)}</div>
+                                        <span class="comment-nickname">${r.nickname || '未知'}</span>
+                                        ${r.replyNickname ? '<span style="font-size:0.85rem;color:var(--text-light);"> 回复 ' + r.replyNickname + '</span>' : ''}
+                                        <span class="comment-time">${formatDate(r.createdAt)}</span>
+                                    </div>
+                                    <div class="comment-content">${r.content}</div>
+                                    <div class="comment-actions">
+                                        <span onclick="toggleCommentLike(${r.id})">&#10084; ${r.likeCount}</span>
+                                        ${(currentUserId === r.userId || (getUser() && getUser().role === 1)) ? '<span onclick="deleteComment(' + r.id + ')" style="color:var(--danger);">删除</span>' : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+
+            // Pagination
+            const totalPages = Math.ceil(r.data.total / r.data.size);
+            let pagHtml = '';
+            for (let i = 1; i <= totalPages; i++) {
+                pagHtml += `<button class="${i === commentPage ? 'active' : ''}" onclick="commentGoPage(${i})">${i}</button>`;
+            }
+            document.getElementById('commentPagination').innerHTML = totalPages > 1 ? pagHtml : '';
+        }
+
+        // Comment form
+        document.getElementById('commentForm').innerHTML = isLoggedIn() ? `
+            <div class="comment-form">
+                <textarea id="commentText" placeholder="写下你的评论..."></textarea>
+                <div class="form-footer">
+                    <span style="font-size:0.8rem;color:var(--text-light);" id="replyHint"></span>
+                    <input type="hidden" id="parentId" value="">
+                    <input type="hidden" id="replyUserId" value="">
+                    <button class="btn btn-primary btn-sm" onclick="submitComment()">发表评论</button>
+                </div>
+            </div>
+        ` : '<p style="color:var(--text-light);margin-bottom:16px;">请先 <a href="/login" style="color:var(--primary);">登录</a> 后发表评论</p>';
+    });
+}
+
+function commentGoPage(p) {
+    commentPage = p;
+    loadComments();
+    window.scrollTo(0, document.querySelector('.comment-section').offsetTop - 80);
+}
+
+function showReplyForm(parentId, nickname) {
+    document.getElementById('parentId').value = parentId;
+    document.getElementById('replyUserId').value = '';
+    // Need to find replyUserId from the DOM (simplified: just set parentId)
+    document.getElementById('replyHint').textContent = '回复 ' + nickname + ': ';
+    document.getElementById('commentText').focus();
+
+    // move form into reply slot for better UX
+    const replySlot = document.getElementById('replyForm_' + parentId);
+    const formEl = document.querySelector('.comment-form');
+    if (replySlot && formEl) {
+        replySlot.appendChild(formEl);
+    }
+}
+
+function submitComment() {
+    const content = document.getElementById('commentText').value.trim();
+    if (!content) { showToast('请输入评论内容', 'error'); return; }
+    if (!isLoggedIn()) { window.location.href = '/login'; return; }
+
+    const parentId = document.getElementById('parentId').value || null;
+    const body = { guideId: parseInt(guideId), content: content };
+    if (parentId) body.parentId = parseInt(parentId);
+
+    api('/api/comment', { method: 'POST', body }).then(r => {
+        if (r.code === 200) {
+            document.getElementById('commentText').value = '';
+            document.getElementById('parentId').value = '';
+            document.getElementById('replyUserId').value = '';
+            document.getElementById('replyHint').textContent = '';
+            commentPage = 1;
+            loadComments();
+            showToast('评论发表成功');
+        } else {
+            showToast(r.message || '评论失败', 'error');
+        }
+    });
+}
+
+function toggleCommentLike(commentId) {
+    if (!isLoggedIn()) { window.location.href = '/login'; return; }
+    api('/api/like', { method: 'POST', body: { targetId: commentId, targetType: 2 } }).then(r => {
+        if (r.code === 200) { loadComments(); }
+    });
+}
+
+function deleteComment(id) {
+    showConfirm('确定删除这条评论吗？', function() {
+        api('/api/comment/' + id, { method: 'DELETE' }).then(r => {
+            if (r.code === 200) {
+                showToast('删除成功');
+                loadComments();
+            } else {
+                showToast(r.message || '删除失败', 'error');
+            }
+        });
+    });
+}
+
+// Confirm dialog
+function showConfirm(msg, onOk) {
+    var dialog = document.getElementById('confirmDialog');
+    document.getElementById('confirmMsg').textContent = msg;
+    dialog.style.display = 'flex';
+
+    var cleanup = function() {
+        dialog.style.display = 'none';
+        document.getElementById('confirmOk').removeEventListener('click', handleOk);
+        document.getElementById('confirmCancel').removeEventListener('click', handleCancel);
+    };
+
+    function handleOk() { cleanup(); onOk(); }
+    function handleCancel() { cleanup(); }
+
+    document.getElementById('confirmOk').addEventListener('click', handleOk);
+    document.getElementById('confirmCancel').addEventListener('click', handleCancel);
+}
+
+// Init
+loadComments();
+</script>
+</body>
+</html>

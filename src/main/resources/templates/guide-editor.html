@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${isEdit} ? '编辑攻略' : '发布攻略'">发布攻略 - 游戏攻略站</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <style>
+        .cropper-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:rgba(0,0,0,0.5); }
+        .cropper-modal.active { display:flex; align-items:center; justify-content:center; }
+        .cropper-modal-card { background:#fff; border-radius:12px; padding:24px; box-shadow:0 8px 40px rgba(0,0,0,0.18); max-width:90vw; }
+        .cropper-container-box { width:800px; max-width:100%; max-height:60vh; }
+        .cropper-container-box img { max-width:100%; max-height:60vh; display:block; }
+        .cropper-actions { display:flex; justify-content:center; gap:12px; margin-top:20px; }
+        .cropper-actions button { padding:10px 28px; border-radius:20px; border:none; cursor:pointer; font-size:0.95rem; }
+        .cropper-actions .btn-crop-confirm { background:var(--primary); color:#fff; }
+        .cropper-actions .btn-crop-cancel { background:var(--bg); color:var(--text); }
+
+        /* Tag input */
+        .tag-input-wrap { position:relative; border:1px solid var(--border); border-radius:8px; padding:6px 10px; background:#fff; display:flex; flex-wrap:wrap; gap:6px; align-items:center; cursor:text; min-height:44px; }
+        .tag-input-wrap:focus-within { border-color:var(--primary); }
+        .tag-chips { display:flex; flex-wrap:wrap; gap:6px; }
+        .tag-chip { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#f0edff; color:var(--primary); border-radius:14px; font-size:0.85rem; }
+        .tag-chip .tag-chip-x { cursor:pointer; font-size:1rem; line-height:1; opacity:0.6; }
+        .tag-chip .tag-chip-x:hover { opacity:1; }
+        .tag-search { border:none; outline:none; flex:1; min-width:120px; font-size:0.95rem; background:transparent; padding:4px 0; }
+        .tag-dropdown { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow-hover); z-index:100; max-height:200px; overflow-y:auto; margin-top:4px; }
+        .tag-dropdown-item { padding:8px 14px; cursor:pointer; font-size:0.9rem; display:flex; justify-content:space-between; }
+        .tag-dropdown-item:hover { background:var(--bg); }
+        .tag-dropdown-item .tag-count { color:var(--text-light); font-size:0.8rem; }
+        .tag-dropdown-item.no-match { color:var(--text-light); cursor:default; font-style:italic; }
+    </style>
+</head>
+<body>
+
+<div th:replace="fragments/header :: header"></div>
+
+<main class="editor-page">
+    <div class="container">
+        <div class="editor-card">
+            <h2 id="editorTitle">发布攻略</h2>
+
+            <div class="form-group">
+                <label>选择游戏 *</label>
+                <select id="gameSelect" class="form-select"></select>
+            </div>
+
+            <div class="form-group">
+                <label>攻略标题 *</label>
+                <input type="text" id="titleInput" class="form-input-lg" placeholder="输入攻略标题，最长128字" maxlength="128">
+            </div>
+
+            <div class="form-group">
+                <label>摘要</label>
+                <input type="text" id="summaryInput" class="form-input-lg" placeholder="选填，不填则自动截取正文前100字" maxlength="256">
+            </div>
+
+            <div class="form-group">
+                <label>标签</label>
+                <div class="tag-input-wrap" id="tagInputWrap">
+                    <div class="tag-chips" id="tagChips"></div>
+                    <input type="text" id="tagSearchInput" class="tag-search" placeholder="输入标签关键词搜索..." autocomplete="off">
+                    <div class="tag-dropdown" id="tagDropdown" style="display:none;"></div>
+                </div>
+                <input type="hidden" id="tagsInput">
+            </div>
+
+            <div class="form-group">
+                <label>攻略封面图</label>
+                <div id="coverUpload" style="display:flex;gap:16px;align-items:flex-start;">
+                    <div id="coverPreview" style="width:200px;height:130px;border:2px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;overflow:hidden;background:var(--bg);">
+                        <span style="color:var(--text-light);font-size:0.9rem;">点击上传封面</span>
+                    </div>
+                    <div style="font-size:0.85rem;color:var(--text-light);line-height:1.6;">
+                        <p>建议尺寸 800×520，支持 JPG/PNG/WebP</p>
+                        <p>大小不超过 5MB</p>
+                        <p id="coverStatus" style="color:var(--success);"></p>
+                    </div>
+                </div>
+                <input type="file" id="coverFileInput" accept="image/*" style="display:none;">
+                <input type="hidden" id="coverUrlInput">
+            </div>
+
+            <div class="form-group">
+                <label>攻略正文 *（支持 HTML）</label>
+                <div style="margin-bottom:6px;font-size:0.85rem;color:var(--text-light);">
+                    <span onclick="wrapTag('b')" style="cursor:pointer;margin-right:8px;" title="加粗"><b>B</b></span>
+                    <span onclick="wrapTag('i')" style="cursor:pointer;margin-right:8px;" title="斜体"><i>I</i></span>
+                    <span onclick="wrapTag('h2')" style="cursor:pointer;margin-right:8px;" title="二级标题">H2</span>
+                    <span onclick="wrapTag('h3')" style="cursor:pointer;margin-right:8px;" title="三级标题">H3</span>
+                    <span onclick="wrapTag('p')" style="cursor:pointer;margin-right:8px;" title="段落">P</span>
+                    <span onclick="wrapTag('ul')" style="cursor:pointer;margin-right:8px;" title="无序列表">UL</span>
+                    <span onclick="wrapTag('img')" style="cursor:pointer;margin-right:8px;" title="图片">IMG</span>
+                    <span onclick="wrapTag('blockquote')" style="cursor:pointer;" title="引用">Quote</span>
+                </div>
+                <textarea id="contentInput" class="form-textarea" placeholder="输入攻略正文...支持 HTML 标签"></textarea>
+            </div>
+
+            <div class="form-error" id="editError"></div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="submitGuide(1)">发布</button>
+                <button class="btn btn-outline" style="border-color:var(--border);color:var(--text);" onclick="submitGuide(0)">存草稿</button>
+                <a href="/guides" class="btn" style="color:var(--text-light);">取消</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Crop Modal -->
+<div id="cropModal" class="cropper-modal">
+    <div class="cropper-modal-card">
+        <div class="cropper-container-box">
+            <img id="cropImage">
+        </div>
+        <div class="cropper-actions">
+            <button class="btn-crop-confirm" onclick="confirmCrop()">确认剪裁</button>
+            <button class="btn-crop-cancel" onclick="cancelCrop()">取消</button>
+        </div>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-links">
+                    <a href="/about">关于我们</a>
+                    <a href="/contact">联系我们</a>
+                    <a href="/disclaimer">免责申明</a>
+                    <a href="/privacy">隐私政策</a>
+                </div>
+        <p>&copy; 2026 游戏攻略站 — 为玩家而生</p>
+    </div>
+</footer>
+
+<div th:replace="fragments/header :: auth-script"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script>
+if (!isLoggedIn()) { window.location.href = '/login'; }
+
+const params = new URLSearchParams(window.location.search);
+const editId = params.get('id');
+const presetGameId = params.get('gameId');
+
+// Load games for select
+api('/api/game/list?size=100').then(r => {
+    if (r.code === 200) {
+        document.getElementById('gameSelect').innerHTML =
+            '<option value="">-- 请选择游戏 --</option>' +
+            r.data.list.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+        if (presetGameId) document.getElementById('gameSelect').value = presetGameId;
+        if (editId) loadGuideForEdit();
+    }
+});
+
+if (editId) {
+    document.getElementById('editorTitle').textContent = '编辑攻略';
+}
+
+function loadGuideForEdit() {
+    api('/api/guide/' + editId).then(r => {
+        if (r.code === 200) {
+            const g = r.data;
+            document.getElementById('gameSelect').value = g.gameId;
+            document.getElementById('titleInput').value = g.title;
+            document.getElementById('summaryInput').value = g.summary || '';
+            setTags(g.tags ? g.tags.split(',').map(function(t){return t.trim();}).filter(Boolean) : []);
+            document.getElementById('contentInput').value = g.content;
+            if (g.cover) {
+                document.getElementById('coverUrlInput').value = g.cover;
+                document.getElementById('coverPreview').innerHTML = `<img src="${g.cover}" style="width:100%;height:100%;object-fit:cover;">`;
+            }
+        }
+    });
+}
+
+// Cover image upload with crop
+let cropper = null;
+let cropFile = null;
+
+document.getElementById('coverPreview').addEventListener('click', function() {
+    document.getElementById('coverFileInput').click();
+});
+
+document.getElementById('coverFileInput').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    cropFile = file;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('cropImage').src = e.target.result;
+        document.getElementById('cropModal').classList.add('active');
+        if (cropper) cropper.destroy();
+        cropper = new Cropper(document.getElementById('cropImage'), {
+            aspectRatio: 800 / 520,
+            viewMode: 1,
+            autoCropArea: 1,
+            movable: true,
+            zoomable: true,
+            scalable: true
+        });
+    };
+    reader.readAsDataURL(file);
+    this.value = '';
+});
+
+function confirmCrop() {
+    if (!cropper) return;
+    const canvas = cropper.getCroppedCanvas({ width: 800, height: 520 });
+    canvas.toBlob(function(blob) {
+        const formData = new FormData();
+        formData.append('file', blob, cropFile.name || 'cover.jpg');
+
+        document.getElementById('coverStatus').textContent = '上传中...';
+        document.getElementById('coverStatus').style.color = '';
+
+        fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+            headers: { 'Authorization': 'Bearer ' + getToken() }
+        }).then(r => r.json()).then(r => {
+            if (r.code === 200) {
+                const url = r.data;
+                document.getElementById('coverUrlInput').value = url;
+                document.getElementById('coverPreview').innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;">`;
+                document.getElementById('coverStatus').textContent = '上传成功';
+                document.getElementById('coverStatus').style.color = 'var(--success)';
+            } else {
+                document.getElementById('coverStatus').textContent = '上传失败: ' + (r.message || '');
+                document.getElementById('coverStatus').style.color = 'var(--danger)';
+            }
+        }).catch(function() {
+            document.getElementById('coverStatus').textContent = '上传失败';
+            document.getElementById('coverStatus').style.color = 'var(--danger)';
+        });
+
+        closeCropper();
+    }, 'image/jpeg', 0.9);
+}
+
+function cancelCrop() {
+    closeCropper();
+    cropFile = null;
+}
+
+function closeCropper() {
+    document.getElementById('cropModal').classList.remove('active');
+    if (cropper) { cropper.destroy(); cropper = null; }
+}
+
+// Tag input widget
+var selectedTags = [];
+var tagSearchTimer = null;
+
+function setTags(tags) {
+    selectedTags = tags.slice();
+    renderTags();
+}
+
+function renderTags() {
+    document.getElementById('tagChips').innerHTML = selectedTags.map(function(t, i) {
+        return '<span class="tag-chip">' + t + '<span class="tag-chip-x" onclick="removeTag(' + i + ')">&times;</span></span>';
+    }).join('');
+    document.getElementById('tagsInput').value = selectedTags.join(',');
+}
+
+function removeTag(i) {
+    selectedTags.splice(i, 1);
+    renderTags();
+}
+
+function addTag(tag) {
+    tag = tag.trim();
+    if (!tag) return;
+    if (selectedTags.indexOf(tag) < 0) {
+        selectedTags.push(tag);
+        renderTags();
+    }
+    document.getElementById('tagSearchInput').value = '';
+    document.getElementById('tagDropdown').style.display = 'none';
+}
+
+document.getElementById('tagSearchInput').addEventListener('input', function() {
+    var kw = this.value.trim();
+    clearTimeout(tagSearchTimer);
+
+    if (!kw) {
+        document.getElementById('tagDropdown').style.display = 'none';
+        return;
+    }
+
+    tagSearchTimer = setTimeout(function() {
+        api('/api/tag/search?keyword=' + encodeURIComponent(kw) + '&limit=8').then(function(r) {
+            if (r.code !== 200) return;
+            var dropdown = document.getElementById('tagDropdown');
+            var html = r.data.map(function(t) {
+                return '<div class="tag-dropdown-item" data-name="' + t.name + '"><span>' + t.name + '</span><span class="tag-count">' + t.useCount + '次</span></div>';
+            }).join('');
+
+            if (r.data.length === 0) {
+                html += '<div class="tag-dropdown-item no-match">按回车创建标签 "' + kw + '"</div>';
+            } else {
+                var exact = r.data.some(function(t) { return t.name === kw; });
+                if (!exact) {
+                    html += '<div class="tag-dropdown-item no-match">按回车新建 "' + kw + '"</div>';
+                }
+            }
+
+            dropdown.innerHTML = html;
+            dropdown.style.display = 'block';
+
+            dropdown.querySelectorAll('.tag-dropdown-item:not(.no-match)').forEach(function(el) {
+                el.addEventListener('click', function() { addTag(this.dataset.name); });
+            });
+        });
+    }, 200);
+});
+
+document.getElementById('tagSearchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        var kw = this.value.trim();
+        if (kw) addTag(kw);
+    }
+    if (e.key === 'Backspace' && !this.value && selectedTags.length > 0) {
+        selectedTags.pop();
+        renderTags();
+    }
+});
+
+document.getElementById('tagInputWrap').addEventListener('click', function() {
+    document.getElementById('tagSearchInput').focus();
+});
+
+document.addEventListener('click', function(e) {
+    if (!document.getElementById('tagInputWrap').contains(e.target)) {
+        document.getElementById('tagDropdown').style.display = 'none';
+    }
+});
+
+function wrapTag(tag) {
+    const textarea = document.getElementById('contentInput');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+
+    let wrapped;
+    switch(tag) {
+        case 'b': wrapped = `<b>${selected || '加粗文字'}</b>`; break;
+        case 'i': wrapped = `<i>${selected || '斜体文字'}</i>`; break;
+        case 'h2': wrapped = `<h2>${selected || '二级标题'}</h2>`; break;
+        case 'h3': wrapped = `<h3>${selected || '三级标题'}</h3>`; break;
+        case 'p': wrapped = `<p>${selected || '段落内容'}</p>`; break;
+        case 'ul': wrapped = `<ul>\n  <li>${selected || '列表项'}</li>\n</ul>`; break;
+        case 'img': wrapped = `<img src="${selected || 'https://example.com/image.jpg'}" alt="图片">`; break;
+        case 'blockquote': wrapped = `<blockquote>${selected || '引用内容'}</blockquote>`; break;
+    }
+
+    textarea.value = text.substring(0, start) + wrapped + text.substring(end);
+}
+
+function submitGuide(status) {
+    const gameId = document.getElementById('gameSelect').value;
+    const title = document.getElementById('titleInput').value.trim();
+    const content = document.getElementById('contentInput').value.trim();
+
+    if (!gameId) { document.getElementById('editError').textContent = '请选择游戏'; return; }
+    if (!title) { document.getElementById('editError').textContent = '请输入标题'; return; }
+    if (!content) { document.getElementById('editError').textContent = '请输入正文'; return; }
+
+    const body = {
+        gameId: parseInt(gameId),
+        title: title,
+        content: content,
+        summary: document.getElementById('summaryInput').value.trim() || null,
+        tags: document.getElementById('tagsInput').value.trim() || null,
+        cover: document.getElementById('coverUrlInput').value || null,
+        status: status
+    };
+
+    const method = editId ? 'PUT' : 'POST';
+    const url = editId ? '/api/guide/' + editId : '/api/guide';
+
+    api(url, { method, body }).then(r => {
+        if (r.code === 200) {
+            showToast(editId ? '攻略已更新' : (status === 1 ? '攻略发布成功' : '草稿已保存'));
+            setTimeout(() => { window.location.href = '/guide-detail?id=' + (r.data.id || editId); }, 500);
+        } else {
+            document.getElementById('editError').textContent = r.message || '提交失败';
+        }
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关于我们 - 游戏攻略站</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div th:replace="fragments/header :: header"></div>
+
+<main class="section">
+    <div class="container" style="max-width:800px;">
+        <h1 style="font-size:1.8rem;margin-bottom:24px;">关于我们</h1>
+        <div style="background:var(--card-bg);border-radius:var(--radius);padding:32px;box-shadow:var(--shadow);line-height:1.8;font-size:0.95rem;">
+
+            <h3>我们是谁</h3>
+            <p>游戏攻略站是一个由玩家创建、为玩家服务的游戏攻略分享平台。我们致力于汇聚全球玩家的智慧与经验，为每一位游戏爱好者提供高质量的游戏攻略、技巧分享和社区交流空间。</p>
+
+            <h3 style="margin-top:24px;">我们的愿景</h3>
+            <p>打造中文世界最受欢迎的游戏攻略社区，让每一位玩家都能在这里找到需要的帮助，也能将自己的游戏心得分享给更多人。</p>
+
+            <h3 style="margin-top:24px;">核心功能</h3>
+            <ul style="margin-left:20px;">
+                <li style="margin-bottom:8px;"><strong>攻略分享</strong> — 支持富文本编辑，轻松发布图文并茂的游戏攻略</li>
+                <li style="margin-bottom:8px;"><strong>游戏库</strong> — 覆盖各类热门游戏，快速定位你感兴趣的领域</li>
+                <li style="margin-bottom:8px;"><strong>社区互动</strong> — 点赞、评论、收藏，与其他玩家交流心得</li>
+                <li style="margin-bottom:8px;"><strong>标签系统</strong> — 多维度标签分类，精准筛选所需内容</li>
+            </ul>
+
+            <h3 style="margin-top:24px;">加入我们</h3>
+            <p>无论你是硬核玩家还是休闲爱好者，只要热爱游戏、乐于分享，都欢迎加入我们的社区。你的每一篇攻略，都可能帮助到千千万万的玩家。</p>
+
+            <p style="margin-top:32px;color:var(--text-light);">游戏攻略站团队 — 为玩家而生</p>
+        </div>
+    </div>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-links">
+                    <a href="/about">关于我们</a>
+                    <a href="/contact">联系我们</a>
+                    <a href="/disclaimer">免责申明</a>
+                    <a href="/privacy">隐私政策</a>
+                </div>
+        <p>&copy; 2026 游戏攻略站 — 为玩家而生</p>
+    </div>
+</footer>
+
+<div th:replace="fragments/header :: auth-script"></div>
+</body>
+</html>

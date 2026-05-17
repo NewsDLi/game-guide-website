@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gameguide.mapper.GameMapper">
+
+    <resultMap id="gameMap" type="com.gameguide.entity.Game">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="cover" property="cover"/>
+        <result column="category" property="category"/>
+        <result column="description" property="description"/>
+        <result column="rating" property="rating"/>
+        <result column="guide_count" property="guideCount"/>
+        <result column="status" property="status"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectList" resultMap="gameMap">
+        SELECT * FROM t_game WHERE status = 1
+        <if test="category != null and category != ''">
+            AND category = #{category}
+        </if>
+        ORDER BY sort_order DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByCategory" resultType="long">
+        SELECT COUNT(*) FROM t_game WHERE status = 1
+        <if test="category != null and category != ''">
+            AND category = #{category}
+        </if>
+    </select>
+
+    <select id="selectById" resultMap="gameMap">
+        SELECT * FROM t_game WHERE id = #{id}
+    </select>
+
+    <update id="updateGuideCount">
+        UPDATE t_game SET guide_count = guide_count + #{delta} WHERE id = #{id}
+    </update>
+
+</mapper>

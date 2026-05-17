@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 游戏攻略站</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div th:replace="fragments/header :: header"></div>
+
+<main>
+    <div class="container">
+        <div class="user-layout">
+            <aside class="user-sidebar">
+                <a href="#" class="active" data-panel="info">个人信息</a>
+                <a href="#" data-panel="guides">我的攻略</a>
+                <a href="#" data-panel="password">修改密码</a>
+            </aside>
+
+            <div class="user-content">
+                <!-- Info Panel -->
+                <div id="panel-info">
+                    <h2>个人信息</h2>
+                    <div id="userInfo" style="font-size:0.95rem;"><p>加载中...</p></div>
+                </div>
+
+                <!-- My Guides Panel -->
+                <div id="panel-guides" style="display:none;">
+                    <h2>我的攻略</h2>
+                    <div id="myGuideList"></div>
+                    <div class="pagination" id="myGuidePagination"></div>
+                </div>
+
+                <!-- Password Panel -->
+                <div id="panel-password" style="display:none;">
+                    <h2>修改密码</h2>
+                    <form onsubmit="changePassword(event)" style="max-width:400px;">
+                        <div class="form-group">
+                            <label>当前密码</label>
+                            <input type="password" name="oldPassword" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label>新密码</label>
+                            <input type="password" name="newPassword" class="form-input" required placeholder="6位以上">
+                        </div>
+                        <div class="form-error" id="pwdError"></div>
+                        <button type="submit" class="btn btn-primary">确认修改</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-links">
+                    <a href="/about">关于我们</a>
+                    <a href="/contact">联系我们</a>
+                    <a href="/disclaimer">免责申明</a>
+                    <a href="/privacy">隐私政策</a>
+                </div>
+        <p>&copy; 2026 游戏攻略站 — 为玩家而生</p>
+    </div>
+</footer>
+
+<!-- Confirm Dialog -->
+<div id="confirmDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);border-radius:var(--radius);padding:28px 32px;box-shadow:var(--shadow-hover);max-width:380px;width:90vw;text-align:center;">
+        <p id="confirmMsg" style="font-size:1rem;margin-bottom:20px;line-height:1.6;"></p>
+        <div style="display:flex;gap:10px;justify-content:center;">
+            <button id="confirmCancel" class="btn btn-outline" style="border-color:var(--border);color:var(--text);">取消</button>
+            <button id="confirmOk" class="btn btn-danger">确认删除</button>
+        </div>
+    </div>
+</div>
+
+<div th:replace="fragments/header :: auth-script"></div>
+
+<script>
+if (!isLoggedIn()) { window.location.href = '/login'; }
+
+// Panel switching
+document.querySelectorAll('.user-sidebar a').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.user-sidebar a').forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+        const panelId = 'panel-' + this.dataset.panel;
+        ['info', 'guides', 'password'].forEach(p => {
+            document.getElementById('panel-' + p).style.display = p === this.dataset.panel ? '' : 'none';
+        });
+        if (this.dataset.panel === 'info') loadUserInfo();
+        if (this.dataset.panel === 'guides') loadMyGuides(1);
+    });
+});
+
+function loadUserInfo() {
+    api('/api/user/info').then(r => {
+        if (r.code === 200) {
+            const u = r.data;
+            document.getElementById('userInfo').innerHTML = `
+                <div style="display:flex;gap:24px;align-items:center;margin-bottom:20px;">
+                    <div class="author-avatar" style="width:72px;height:72px;font-size:2rem;margin:0;">${(u.nickname || '?').charAt(0)}</div>
+                    <div>
+                        <p style="font-size:1.2rem;font-weight:600;">${u.nickname || u.username}</p>
+                        <p style="color:var(--text-light);">@${u.username}</p>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <p>${u.username}</p>
+                </div>
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <p>${u.email || '未设置'}</p>
+                </div>
+                <div class="form-group">
+                    <label>角色</label>
+                    <p>${u.role === 1 ? '管理员' : '普通用户'}</p>
+                </div>
+                <div class="form-group">
+                    <label>注册时间</label>
+                    <p>${formatDate(u.createdAt)}</p>
+                </div>
+            `;
+        }
+    });
+}
+
+let myGuidePage = 1;
+function loadMyGuides(page) {
+    myGuidePage = page;
+    api('/api/guide/my?page=' + page + '&size=10').then(r => {
+        if (r.code === 200) {
+            document.getElementById('myGuideList').innerHTML = r.data.list.length ?
+                r.data.list.map(g => `
+                    <div style="padding:14px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <a href="/guide-detail?id=${g.id}" style="font-weight:500;">${g.title}</a>
+                            <span style="font-size:0.8rem;margin-left:8px;color:${g.status === 0 ? 'var(--accent)' : 'var(--success)'};">${g.status === 0 ? '[草稿]' : '[已发布]'}</span>
+                            <div style="font-size:0.85rem;color:var(--text-light);margin-top:4px;">
+                                ${g.gameName || ''} &nbsp; &#128064; ${g.viewCount} &nbsp; &#10084; ${g.likeCount} &nbsp; ${formatDate(g.createdAt)}
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <a href="/guide-editor?id=${g.id}&gameId=${g.gameId}" class="btn btn-outline btn-sm" style="border-color:var(--primary);color:var(--primary);">编辑</a>
+                            <button class="btn btn-outline btn-sm" style="border-color:var(--danger);color:var(--danger);" onclick="event.preventDefault(); deleteMyGuide(${g.id})">删除</button>
+                        </div>
+                    </div>
+                `).join('') :
+                '<div class="empty"><p>暂无攻略</p></div>';
+
+            const totalPages = Math.ceil(r.data.total / r.data.size);
+            let pagHtml = '';
+            for (let i = 1; i <= totalPages; i++) {
+                pagHtml += `<button class="${i === myGuidePage ? 'active' : ''}" onclick="loadMyGuides(${i})">${i}</button>`;
+            }
+            document.getElementById('myGuidePagination').innerHTML = totalPages > 1 ? pagHtml : '';
+        }
+    });
+}
+
+function changePassword(e) {
+    e.preventDefault();
+    const form = e.target;
+    const body = {
+        oldPassword: form.oldPassword.value,
+        newPassword: form.newPassword.value
+    };
+    api('/api/user/password', { method: 'PUT', body }).then(r => {
+        if (r.code === 200) {
+            showToast('密码修改成功');
+            form.reset();
+        } else {
+            document.getElementById('pwdError').textContent = r.message || '修改失败';
+        }
+    });
+}
+
+// Delete guide
+function deleteMyGuide(id) {
+    showConfirm('确定要删除这篇攻略吗？此操作不可恢复。', function() {
+        api('/api/guide/' + id, { method: 'DELETE' }).then(r => {
+            if (r.code === 200) {
+                showToast('删除成功');
+                loadMyGuides(myGuidePage);
+            } else {
+                showToast(r.message || '删除失败', 'error');
+            }
+        });
+    });
+}
+
+// Confirm dialog
+function showConfirm(msg, onOk) {
+    var dialog = document.getElementById('confirmDialog');
+    document.getElementById('confirmMsg').textContent = msg;
+    dialog.style.display = 'flex';
+
+    function cleanup() {
+        dialog.style.display = 'none';
+        document.getElementById('confirmOk').removeEventListener('click', handleOk);
+        document.getElementById('confirmCancel').removeEventListener('click', handleCancel);
+    }
+
+    function handleOk() { cleanup(); onOk(); }
+    function handleCancel() { cleanup(); }
+
+    document.getElementById('confirmOk').addEventListener('click', handleOk);
+    document.getElementById('confirmCancel').addEventListener('click', handleCancel);
+}
+
+// Load info on page load
+loadUserInfo();
+</script>
+</body>
+</html>

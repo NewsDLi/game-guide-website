@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏攻略站</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div th:replace="fragments/header :: header"></div>
+
+<main>
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container">
+            <h1>找到最好的<span>游戏攻略</span></h1>
+            <p>汇聚玩家智慧，解锁每一关</p>
+            <!-- hero search hidden for phase 1 -->
+        </div>
+    </section>
+
+    <!-- Hot Games -->
+    <section class="section">
+        <div class="container">
+            <div class="section-title">
+                <span>热门游戏</span>
+                <a href="/games">查看全部 &rarr;</a>
+            </div>
+            <div class="game-grid" id="hotGames"></div>
+        </div>
+    </section>
+
+    <!-- Latest Guides -->
+    <section class="section" style="background: #fff;">
+        <div class="container">
+            <div class="section-title">
+                <span>最新攻略</span>
+                <a href="/guides">查看全部 &rarr;</a>
+            </div>
+            <div class="guide-list" id="latestGuides"></div>
+        </div>
+    </section>
+
+    <!-- Hot Tags -->
+    <section class="section">
+        <div class="container">
+            <div class="section-title">
+                <span>热门标签</span>
+            </div>
+            <div class="category-bar" id="hotTags"></div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-links">
+                    <a href="/about">关于我们</a>
+                    <a href="/contact">联系我们</a>
+                    <a href="/disclaimer">免责申明</a>
+                    <a href="/privacy">隐私政策</a>
+                </div>
+        <p>&copy; 2026 游戏攻略站 — 为玩家而生</p>
+    </div>
+</footer>
+
+<div th:replace="fragments/header :: auth-script"></div>
+
+<script>
+function searchHero() {
+    const kw = document.getElementById('heroKeyword').value.trim();
+    if (kw) window.location.href = '/guides?keyword=' + encodeURIComponent(kw);
+}
+
+// Load hot games
+api('/api/game/list?size=6').then(r => {
+    if (r.code === 200) {
+        document.getElementById('hotGames').innerHTML = r.data.list.map(g => `
+            <a href="/game-detail?id=${g.id}" class="game-card">
+                <div class="game-card-cover">${g.cover ? `<img src="${g.cover}" alt="${g.name}" style="width:100%;height:100%;object-fit:cover;">` : '&#127918;'}</div>
+                <div class="game-card-body">
+                    <h3>${g.name}</h3>
+                    <div class="game-card-meta">
+                        <span class="rating">&#9733; ${g.rating}</span>
+                        <span>${g.guideCount} 篇攻略</span>
+                    </div>
+                    <div class="game-card-desc">${g.description || ''}</div>
+                </div>
+            </a>
+        `).join('');
+    }
+});
+
+// Load latest guides
+api('/api/guide/list?size=5&orderBy=new').then(r => {
+    if (r.code === 200) {
+        document.getElementById('latestGuides').innerHTML = r.data.list.map(g => `
+            <a href="/guide-detail?id=${g.id}" class="guide-card">
+                <div class="guide-card-cover">${g.cover ? `<img src="${g.cover}" alt="${g.title}" style="width:100%;height:100%;object-fit:cover;">` : '&#128214;'}</div>
+                <div class="guide-card-body">
+                    <h3>${g.title}</h3>
+                    <div class="guide-summary">${g.summary || ''}</div>
+                    <div class="guide-tags">${(g.tags || '').split(',').filter(Boolean).map(t => `<span class="tag">${t.trim()}</span>`).join('')}</div>
+                    <div class="guide-meta">
+                        <span>&#128100; ${g.authorName || '未知'}</span>
+                        <span>&#128064; ${g.viewCount}</span>
+                        <span>&#10084; ${g.likeCount}</span>
+                        <span>&#128172; ${g.commentCount}</span>
+                        <span>${formatDate(g.createdAt)}</span>
+                    </div>
+                </div>
+            </a>
+        `).join('');
+    }
+});
+
+// Load hot tags
+api('/api/tag/hot?limit=10').then(r => {
+    if (r.code === 200) {
+        document.getElementById('hotTags').innerHTML = r.data.map(t =>
+            `<a href="/guides?tag=${encodeURIComponent(t.name)}" class="category-tag">${t.name} (${t.useCount})</a>`
+        ).join('');
+    }
+});
+</script>
+</body>
+</html>

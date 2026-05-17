@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>联系我们 - 游戏攻略站</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div th:replace="fragments/header :: header"></div>
+
+<main class="section">
+    <div class="container" style="max-width:800px;">
+        <h1 style="font-size:1.8rem;margin-bottom:24px;">联系我们</h1>
+        <div style="background:var(--card-bg);border-radius:var(--radius);padding:32px;box-shadow:var(--shadow);line-height:1.8;font-size:0.95rem;">
+
+            <p>感谢你对游戏攻略站的关注！如有任何问题、建议或合作意向，欢迎通过以下方式联系我们。</p>
+
+            <h3 style="margin-top:24px;">问题反馈</h3>
+            <p>如遇到网站使用问题、内容错误或功能建议，请发送邮件至：</p>
+            <p style="font-size:1.1rem;color:var(--primary);"><strong>game420211707@163.com</strong></p>
+
+            <h3 style="margin-top:24px;">内容侵权举报</h3>
+            <p>如果你认为本站的某些内容侵犯了你的合法权益，请提供以下信息发送至 <strong>game420211707@163.com</strong>：</p>
+            <ul style="margin-left:20px;margin-top:8px;">
+                <li>权利人的身份证明或授权委托书</li>
+                <li>侵权内容的具体链接（URL）</li>
+                <li>构成侵权的初步证明材料</li>
+            </ul>
+            <p style="margin-top:8px;">我们将在收到完整材料后的 7 个工作日内核实并处理。</p>
+
+            <h3 style="margin-top:24px;">商务合作</h3>
+            <p>广告投放、品牌合作、市场推广等商务事宜，请联系：<strong>game420211707@163.com</strong></p>
+
+            <h3 style="margin-top:24px;">社交媒体</h3>
+            <p>关注我们的最新动态：</p>
+            <p style="margin-top:4px;">微博：@游戏攻略站 &nbsp;|&nbsp; 微信公众号：游戏攻略站</p>
+
+            <h3 style="margin-top:24px;">工作时间</h3>
+            <p>邮件回复时间：工作日 10:00 - 18:00（北京时间）</p>
+            <p style="color:var(--text-light);">一般咨询将在 1-2 个工作日内回复。</p>
+        </div>
+    </div>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-links">
+                    <a href="/about">关于我们</a>
+                    <a href="/contact">联系我们</a>
+                    <a href="/disclaimer">免责申明</a>
+                    <a href="/privacy">隐私政策</a>
+                </div>
+        <p>&copy; 2026 游戏攻略站 — 为玩家而生</p>
+    </div>
+</footer>
+
+<div th:replace="fragments/header :: auth-script"></div>
+</body>
+</html>

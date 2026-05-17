@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>免责申明 - 游戏攻略站</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div th:replace="fragments/header :: header"></div>
+
+<main class="section">
+    <div class="container" style="max-width:800px;">
+        <h1 style="font-size:1.8rem;margin-bottom:24px;">免责申明</h1>
+        <div style="background:var(--card-bg);border-radius:var(--radius);padding:32px;box-shadow:var(--shadow);line-height:1.8;font-size:0.95rem;">
+
+            <p>欢迎使用游戏攻略站（以下简称"本站"）。使用本站即表示您同意以下免责条款。</p>
+
+            <h3 style="margin-top:24px;">1. 内容准确性</h3>
+            <p>本站提供的游戏攻略、资讯等内容均由用户自发贡献或整理自网络公开资源。虽然我们力求内容准确，但无法保证所有信息的完整性、时效性和准确性。攻略内容仅供参考，不构成任何形式的承诺或保证。</p>
+
+            <h3 style="margin-top:24px;">2. 用户生成内容</h3>
+            <p>用户在本站发布的攻略、评论等内容的著作权归原作者所有，内容的真实性、合法性由发布者自行负责。如发现侵权或违规内容，请通过联系我们页面反馈，我们将在核实后及时处理。</p>
+
+            <h3 style="margin-top:24px;">3. 第三方链接</h3>
+            <p>本站可能包含指向第三方网站或资源的链接，这些链接仅供用户便利参考。本站不对第三方网站的内容、隐私政策或行为承担任何责任。</p>
+
+            <h3 style="margin-top:24px;">4. 服务中断</h3>
+            <p>因系统维护、网络故障或其他不可抗力因素导致的服务中断或数据丢失，本站不承担相关责任。我们会尽力保障服务的稳定运行。</p>
+
+            <h3 style="margin-top:24px;">5. 知识产权</h3>
+            <p>本站中提及的游戏名称、商标、图像等知识产权归各自权利人所有。本站仅作为玩家交流平台，不主张对上述知识产权的任何权利。</p>
+
+            <h3 style="margin-top:24px;">6. 条款变更</h3>
+            <p>本站保留随时修改本免责申明的权利，修改后的条款将在本站公布后立即生效。建议用户定期查阅。</p>
+
+            <p style="margin-top:32px;color:var(--text-light);">最后更新：2026年5月</p>
+        </div>
+    </div>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-links">
+                    <a href="/about">关于我们</a>
+                    <a href="/contact">联系我们</a>
+                    <a href="/disclaimer">免责申明</a>
+                    <a href="/privacy">隐私政策</a>
+                </div>
+        <p>&copy; 2026 游戏攻略站 — 为玩家而生</p>
+    </div>
+</footer>
+
+<div th:replace="fragments/header :: auth-script"></div>
+</body>
+</html>

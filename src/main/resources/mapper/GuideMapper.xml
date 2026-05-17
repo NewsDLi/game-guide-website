@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gameguide.mapper.GuideMapper">
+
+    <resultMap id="guideMap" type="com.gameguide.entity.Guide">
+        <id column="id" property="id"/>
+        <result column="game_id" property="gameId"/>
+        <result column="user_id" property="userId"/>
+        <result column="title" property="title"/>
+        <result column="summary" property="summary"/>
+        <result column="content" property="content"/>
+        <result column="tags" property="tags"/>
+        <result column="cover" property="cover"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="status" property="status"/>
+        <result column="is_top" property="isTop"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="game_name" property="gameName"/>
+        <result column="author_name" property="authorName"/>
+        <result column="author_avatar" property="authorAvatar"/>
+    </resultMap>
+
+    <select id="selectList" resultMap="guideMap">
+        SELECT g.*, ga.name AS game_name, u.nickname AS author_name, u.avatar AS author_avatar
+        FROM t_guide g
+        LEFT JOIN t_game ga ON g.game_id = ga.id
+        LEFT JOIN t_user u ON g.user_id = u.id
+        WHERE g.status = 1
+        <if test="gameId != null">
+            AND g.game_id = #{gameId}
+        </if>
+        <if test="tag != null and tag != ''">
+            AND FIND_IN_SET(#{tag}, g.tags)
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND g.title LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <choose>
+            <when test="orderBy == 'like'">ORDER BY g.like_count DESC</when>
+            <otherwise>ORDER BY g.is_top DESC, g.created_at DESC</otherwise>
+        </choose>
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countList" resultType="long">
+        SELECT COUNT(*) FROM t_guide WHERE status = 1
+        <if test="gameId != null">
+            AND game_id = #{gameId}
+        </if>
+        <if test="tag != null and tag != ''">
+            AND FIND_IN_SET(#{tag}, tags)
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND title LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+    </select>
+
+    <select id="selectById" resultMap="guideMap">
+        SELECT g.*, ga.name AS game_name, u.nickname AS author_name, u.avatar AS author_avatar
+        FROM t_guide g
+        LEFT JOIN t_game ga ON g.game_id = ga.id
+        LEFT JOIN t_user u ON g.user_id = u.id
+        WHERE g.id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_guide (game_id, user_id, title, summary, content, tags, cover, status)
+        VALUES (#{gameId}, #{userId}, #{title}, #{summary}, #{content}, #{tags}, #{cover}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE t_guide
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="summary != null">summary = #{summary},</if>
+            <if test="tags != null">tags = #{tags},</if>
+            <if test="cover != null">cover = #{cover},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM t_guide WHERE id = #{id}
+    </delete>
+
+    <update id="incrementViews">
+        UPDATE t_guide SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="updateLikeCount">
+        UPDATE t_guide SET like_count = like_count + #{delta} WHERE id = #{id}
+    </update>
+
+    <update id="updateCommentCount">
+        UPDATE t_guide SET comment_count = comment_count + #{delta} WHERE id = #{id}
+    </update>
+
+    <select id="selectByUserId" resultMap="guideMap">
+        SELECT g.*, ga.name AS game_name, u.nickname AS author_name, u.avatar AS author_avatar
+        FROM t_guide g
+        LEFT JOIN t_game ga ON g.game_id = ga.id
+        LEFT JOIN t_user u ON g.user_id = u.id
+        WHERE g.user_id = #{userId}
+        ORDER BY g.created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByUserId" resultType="long">
+        SELECT COUNT(*) FROM t_guide WHERE user_id = #{userId}
+    </select>
+
+</mapper>

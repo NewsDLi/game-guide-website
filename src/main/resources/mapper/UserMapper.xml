@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gameguide.mapper.UserMapper">
+
+    <resultMap id="userMap" type="com.gameguide.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar" property="avatar"/>
+        <result column="email" property="email"/>
+        <result column="role" property="role"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectByUsername" resultMap="userMap">
+        SELECT * FROM t_user WHERE username = #{username} AND status = 1
+    </select>
+
+    <select id="selectById" resultMap="userMap">
+        SELECT * FROM t_user WHERE id = #{id}
+    </select>
+
+    <select id="selectByEmail" resultMap="userMap">
+        SELECT * FROM t_user WHERE email = #{email} AND status = 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_user (username, password, nickname, email, role)
+        VALUES (#{username}, #{password}, #{nickname}, #{email}, 0)
+    </insert>
+
+    <update id="updatePassword">
+        UPDATE t_user SET password = #{password} WHERE id = #{id}
+    </update>
+
+</mapper>

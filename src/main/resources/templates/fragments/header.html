@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title} ?: '游戏攻略站'">游戏攻略站</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<header class="header" th:fragment="header">
+    <div class="container">
+        <a href="/" class="logo">游戏<span>攻略站</span></a>
+        <nav class="nav">
+            <a href="/" th:classappend="${currentPage == 'index'} ? 'active'">首页</a>
+            <a href="/games" th:classappend="${currentPage == 'games'} ? 'active'">游戏库</a>
+            <a href="/guides" th:classappend="${currentPage == 'guides'} ? 'active'">攻略</a>
+        </nav>
+        <div class="header-right">
+            <form class="search-box" action="/guides" method="get" onsubmit="event.preventDefault(); window.location='/guides?keyword='+this.q.value;">
+                <input type="text" name="q" placeholder="搜索攻略...">
+                <button type="submit">&#128269;</button>
+            </form>
+            <div id="header-auth">
+                <a href="/login" class="btn btn-outline btn-sm">登录</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<script th:fragment="auth-script">
+// Check login state
+(function() {
+    const token = localStorage.getItem('token');
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || 'null');
+    const authEl = document.getElementById('header-auth');
+
+    if (token && userInfo) {
+        authEl.innerHTML = `
+            <div class="user-menu">
+                <div class="user-avatar">${userInfo.nickname.charAt(0).toUpperCase()}</div>
+                <div class="user-dropdown">
+                    <a href="/user-center">个人中心</a>
+                    <a href="/guide-editor">写攻略</a>
+                    <a href="#" onclick="logout()">退出登录</a>
+                </div>
+            </div>
+        `;
+    }
+
+    window.logout = function() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userInfo');
+        window.location.href = '/';
+    };
+
+    window.getUser = function() { return userInfo; };
+    window.getToken = function() { return token; };
+    window.isLoggedIn = function() { return !!token; };
+
+    window.api = function(url, options = {}) {
+        const headers = options.headers || {};
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+        if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+            options.body = JSON.stringify(options.body);
+        }
+        return fetch(url, { ...options, headers }).then(r => {
+            if (r.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('userInfo');
+                if (window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
+            }
+            return r.json();
+        });
+    };
+
+    window.showToast = function(msg, type) {
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-' + (type || 'success');
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    };
+
+    window.formatDate = function(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return d.getFullYear() + '-' +
+               String(d.getMonth()+1).padStart(2,'0') + '-' +
+               String(d.getDate()).padStart(2,'0') + ' ' +
+               String(d.getHours()).padStart(2,'0') + ':' +
+               String(d.getMinutes()).padStart(2,'0');
+    };
+})();
+</script>
+
+</body>
+</html>

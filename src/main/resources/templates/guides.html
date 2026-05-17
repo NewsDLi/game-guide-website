@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>攻略列表 - 游戏攻略站</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div th:replace="fragments/header :: header"></div>
+
+<main>
+    <section class="section">
+        <div class="container">
+            <h2 style="margin-bottom: 20px;">攻略列表</h2>
+
+            <!-- Filters -->
+            <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="keywordInput" placeholder="搜索攻略标题..." class="form-input" style="max-width: 260px;">
+                <button class="btn btn-primary btn-sm" onclick="search()">搜索</button>
+                <div class="category-bar" id="orderBar" style="margin-bottom: 0;">
+                    <span class="category-tag active" data-order="new">最新</span>
+                    <span class="category-tag" data-order="like">最多点赞</span>
+                </div>
+            </div>
+
+            <div class="guide-list" id="guideList"></div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-links">
+                    <a href="/about">关于我们</a>
+                    <a href="/contact">联系我们</a>
+                    <a href="/disclaimer">免责申明</a>
+                    <a href="/privacy">隐私政策</a>
+                </div>
+        <p>&copy; 2026 游戏攻略站 — 为玩家而生</p>
+    </div>
+</footer>
+
+<div th:replace="fragments/header :: auth-script"></div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+let keyword = params.get('keyword') || '';
+let tag = params.get('tag') || '';
+let orderBy = 'new';
+let currentPage = 1;
+
+document.getElementById('keywordInput').value = keyword;
+if (tag) {
+    document.getElementById('keywordInput').placeholder = '标签: ' + tag;
+}
+
+function search() {
+    keyword = document.getElementById('keywordInput').value.trim();
+    currentPage = 1;
+    loadGuides();
+}
+
+function loadGuides() {
+    let url = '/api/guide/list?orderBy=' + orderBy + '&page=' + currentPage + '&size=10';
+    if (keyword) url += '&keyword=' + encodeURIComponent(keyword);
+    if (tag) url += '&tag=' + encodeURIComponent(tag);
+
+    api(url).then(r => {
+        if (r.code === 200) {
+            document.getElementById('guideList').innerHTML = r.data.list.length ?
+                r.data.list.map(g => `
+                    <a href="/guide-detail?id=${g.id}" class="guide-card">
+                        <div class="guide-card-cover">${g.cover ? `<img src="${g.cover}" alt="${g.title}" style="width:100%;height:100%;object-fit:cover;">` : '&#128214;'}</div>
+                        <div class="guide-card-body">
+                            <h3>${g.title}</h3>
+                            <div class="guide-summary">${g.summary || ''}</div>
+                            <div class="guide-tags">${(g.tags || '').split(',').filter(Boolean).map(t => `<span class="tag">${t.trim()}</span>`).join('')}</div>
+                            <div class="guide-meta">
+                                <span>&#128100; ${g.authorName || '未知'}</span>
+                                <span>&#127918; ${g.gameName || ''}</span>
+                                <span>&#128064; ${g.viewCount}</span>
+                                <span>&#10084; ${g.likeCount}</span>
+                                <span>&#128172; ${g.commentCount}</span>
+                                <span>${formatDate(g.createdAt)}</span>
+                            </div>
+                        </div>
+                    </a>
+                `).join('') :
+                '<div class="empty"><div class="icon">&#128214;</div><p>没有找到相关攻略</p></div>';
+
+            const totalPages = Math.ceil(r.data.total / r.data.size);
+            let pagHtml = '';
+            for (let i = 1; i <= totalPages; i++) {
+                pagHtml += `<button class="${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+            }
+            document.getElementById('pagination').innerHTML = totalPages > 1 ? pagHtml : '';
+        }
+    });
+}
+
+function goPage(p) {
+    currentPage = p;
+    loadGuides();
+    window.scrollTo(0, 0);
+}
+
+document.querySelectorAll('#orderBar .category-tag').forEach(el => {
+    el.addEventListener('click', function() {
+        document.querySelectorAll('#orderBar .category-tag').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        orderBy = this.dataset.order;
+        currentPage = 1;
+        loadGuides();
+    });
+});
+
+loadGuides();
+</script>
+</body>
+</html>
